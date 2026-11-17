@@ -3,17 +3,119 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>Neon Harbor — Open-World Crime Game</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0f2e; font-family: Arial, Helvetica, sans-serif; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #err { display: none; position: fixed; left: 8px; bottom: 8px; z-index: 99; background: #a00; color: #fff; padding: 6px 10px; font-size: 13px; max-width: 80vw; }
+
+  /* ---- HUD ---- */
+  #hud { display: none; position: fixed; inset: 0; pointer-events: none; color: #fff; z-index: 10; }
+  #top-left { position: absolute; top: 14px; left: 16px; text-shadow: 0 2px 6px #000; }
+  #money { font-size: 30px; font-weight: bold; color: #7dff9e; }
+  #health-wrap { margin-top: 6px; width: 210px; height: 14px; background: rgba(0,0,0,.55); border: 1px solid #fff6; border-radius: 7px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: #22b573; }
+  #health-text { font-size: 13px; margin-top: 3px; }
+  #stars { font-size: 26px; letter-spacing: 4px; margin-top: 4px; }
+  #objective { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.55); padding: 9px 18px; border-radius: 8px; font-size: 16px; border-left: 4px solid #ffe600; max-width: 46vw; text-align: center; }
+  #timer { position: absolute; top: 62px; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: bold; color: #ffe600; text-shadow: 0 2px 6px #000; }
+  #minimap { position: absolute; top: 14px; right: 16px; width: 180px; height: 180px; border: 2px solid rgba(255,255,255,.5); border-radius: 8px; }
+  #toast { position: absolute; top: 34%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: bold; color: #ffe600; text-shadow: 0 2px 8px #000; opacity: 0; transition: opacity .4s; text-align: center; }
+  #dialogue { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.62); padding: 10px 20px; border-radius: 8px; font-size: 16px; font-style: italic; opacity: 0; transition: opacity .4s; max-width: 60vw; text-align: center; }
+  #hint { position: absolute; bottom: 14px; left: 16px; font-size: 13px; color: #ffffffcc; text-shadow: 0 1px 4px #000; }
+  #speed { position: absolute; bottom: 14px; right: 16px; font-size: 26px; font-weight: bold; text-shadow: 0 2px 6px #000; }
+  #interact { display: none; position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); background: #ffe600; color: #111; font-weight: bold; padding: 8px 16px; border-radius: 8px; font-size: 16px; }
+  #crosshair { display: none; position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 4px #000; }
+  #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #crosshair::after { top: 10px; left: 0; width: 22px; height: 2px; }
+
+  /* ---- Screens ---- */
+  .screen { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #fff; background: linear-gradient(180deg, rgba(10,6,26,.25), rgba(10,6,26,.78)); }
+  .screen h1 { font-size: 72px; margin: 0; letter-spacing: 6px; color: #ffe600; text-shadow: 0 0 24px #ff2e88, 0 4px 0 #000; }
+  .screen h2 { font-size: 44px; margin: 0 0 10px; color: #ffe600; text-shadow: 0 0 18px #ff2e88; }
+  .screen p { font-size: 18px; max-width: 560px; line-height: 1.5; }
+  .screen .sub { color: #22e6ff; font-size: 19px; margin: 6px 0 26px; }
+  .screen button { pointer-events: auto; display: inline-block; margin: 6px; padding: 13px 30px; font-size: 18px; font-weight: bold; border: none; border-radius: 10px; background: #ffe600; color: #111; cursor: pointer; }
+  .screen button:hover { background: #fff; }
+  .screen button.ghost { background: rgba(255,255,255,.14); color: #fff; border: 1px solid #fff8; }
+  #save-info { font-size: 14px; color: #ffffffb0; margin-top: 14px; }
+  #howto { display: none; background: rgba(0,0,0,.6); border: 1px solid #fff4; border-radius: 10px; padding: 14px 22px; margin-top: 10px; font-size: 15px; line-height: 1.8; text-align: left; }
+  #title-screen { display: flex; }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="game" aria-label="Neon Harbor: explore the port city on foot or by car, take missions, escape the police"></canvas>
 <p id="status" role="status" aria-live="polite"></p>
+<div id="err"></div>
+
+<div id="hud">
+  <div id="top-left">
+    <div id="money">$0</div>
+    <div id="health-wrap"><div id="health-fill"></div></div>
+    <div id="health-text">100</div>
+    <div id="stars">☆☆☆☆☆</div>
+  </div>
+  <div id="objective"></div>
+  <div id="timer"></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="toast"></div>
+  <div id="dialogue"></div>
+  <div id="hint"></div>
+  <div id="speed"></div>
+  <div id="interact"></div>
+  <div id="crosshair"></div>
+</div>
+
+<div id="title-screen" class="screen">
+  <h1>NEON HARBOR</h1>
+  <div class="sub">Kota pelabuhan tropis. Utang menumpuk. Satu feri terakhir keluar.</div>
+  <p>Kamu Saka, kurir lepas yang terlilit utang ke bos dermaga, Dara. Jelajahi kota jalan kaki atau naik mobil, curi mobil, kabur dari polisi, dan selesaikan 7 misi untuk bebas.</p>
+  <div>
+    <button id="btn-new">▶ Main Baru</button>
+    <button id="btn-continue">↻ Lanjutkan</button>
+    <button id="btn-how" class="ghost">Cara Main</button>
+  </div>
+  <div id="howto">
+    WASD — jalan / gas &amp; rem &nbsp;·&nbsp; Shift — lari<br>
+    E — masuk / keluar mobil (dekati mobil dulu)<br>
+    Klik mouse — tembak &nbsp;·&nbsp; F — pukul<br>
+    Seret mouse — putar kamera &nbsp;·&nbsp; Roda mouse — zoom<br>
+    Spasi — rem tangan &nbsp;·&nbsp; P / Esc — jeda &nbsp;·&nbsp; M — suara
+  </div>
+  <div id="save-info"></div>
+</div>
+
+<div id="pause-screen" class="screen">
+  <h2>JEDA</h2>
+  <p>Istirahat sebentar. Kota tetap menunggumu.</p>
+  <div>
+    <button id="btn-resume">▶ Lanjut</button>
+    <button id="btn-save">💾 Simpan</button>
+    <button id="btn-restart" class="ghost">↺ Mulai dari Awal</button>
+    <button id="btn-quit" class="ghost">Menu Utama</button>
+  </div>
+</div>
+
+<div id="dead-screen" class="screen">
+  <h2 id="dead-title">KAMU MATI</h2>
+  <p id="dead-text"></p>
+  <div><button id="btn-retry">↻ Ulangi Misi</button></div>
+</div>
+
+<div id="end-screen" class="screen">
+  <h2>BEBAS!</h2>
+  <p>Saka naik feri terakhir keluar dari Neon Harbor — bebas, dengan uangnya. TAMAT. Terima kasih sudah bermain!</p>
+  <div>
+    <button id="btn-again">↺ Main Lagi</button>
+    <button id="btn-end-title" class="ghost">Menu Utama</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

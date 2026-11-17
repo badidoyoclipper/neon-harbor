@@ -1,79 +1,123 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+// Neon Harbor — deterministic screenshot scenes behind ?shot=<name>.
+// Each scene plays the real game forward from a fixed setup (same seed,
+// same positions), steered by a tiny autopilot, so the frame is what a
+// real session looks like — never a composed image.
+import { Car } from './vehicles.js';
+import { CAR_COLORS } from './config.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
-
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
-  }
-  return Infinity;
+// Put the player in a car at (x, z) facing `heading`, engine running.
+function putPlayerInCar(world, x, z, heading, color, sport) {
+  const car = new Car(world.scene, x, z, heading, color || 0xd21f3c, { sport: !!sport });
+  world.cars.push(car);
+  world.player.inCar = car;
+  world.player.x = x;
+  world.player.z = z;
+  car.speed = 14;
+  return car;
 }
 
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
+function addPoliceChase(world, around, count, heading) {
+  // Patrol cars in formation around the player: two ahead (visible in the
+  // chase frame), one alongside, one behind — they hold their offsets and
+  // match the player's speed instead of piling onto one point.
+  world.police.setWanted(4, 'shot');
+  const offsets = [
+    { along: 30, side: -7 }, { along: 38, side: 7 }, { along: 22, side: 9 },
+  ];
+  for (let i = 0; i < count; i++) {
+    const o = offsets[i % offsets.length];
+    const car = new Car(world.scene,
+      around.x + Math.sin(heading) * o.along + Math.cos(heading) * o.side,
+      around.z + Math.cos(heading) * o.along - Math.sin(heading) * o.side,
+      heading, 0x1a1a2e, { police: true, ai: 'police' });
+    car.holdOffset = o;
+    world.police.cars.push(car);
+    world.cars.push(car);
   }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
-    }
-  }
-  return best;
+  // One more patrol car behind, so the minimap shows the chase closing in.
+  const back = new Car(world.scene, around.x - Math.sin(heading) * 26, around.z - Math.cos(heading) * 26, heading, 0x1a1a2e, { police: true, ai: 'police' });
+  back.holdOffset = { along: -30, side: -10 };
+  world.police.cars.push(back);
+  world.cars.push(back);
 }
 
-/**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
+function addTrafficAhead(world, x, z, heading, n) {
+  // Traffic in the neighbouring lane (offset sideways) so the player's car
+  // cruises past instead of rear-ending the car ahead.
+  const rx = Math.cos(heading), rz = -Math.sin(heading);
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 === 0 ? 4.4 : -4.4;
+    const along = 26 + i * 18;
+    const car = new Car(world.scene, x + Math.sin(heading) * along + rx * side, z + Math.cos(heading) * along + rz * side, heading, CAR_COLORS[(i + 2) % CAR_COLORS.length], { ai: 'traffic' });
+    car.cruise = 10;
+    car.route = [{ x: x + Math.sin(heading) * 300, z: z + Math.cos(heading) * 300 }, { x, z }];
+    car.wp = 0;
+    car.speed = 10;
+    world.cars.push(car);
+    world.traffic.cars.push(car);
   }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
+}
+
+export function applyShot(world, name) {
+  const p = world.player;
+  if (name === 'start') {
+    // Title screen over a slow orbit of the city at golden hour.
+    world.state = 'title';
+    world.shotOrbit = true;
+    return { autopilot: null };
   }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
+  world.state = 'play';
+  world.hud.hideTitle();
+  if (name === 'cover') {
+    // Police chase: wanted 4, mission marker ahead, minimap busy.
+    world.missions.setMission(1);
+    world.money = 1250;
+    const car = putPlayerInCar(world, -30, 0, Math.PI / 2, 0xf2a007, false);
+    car.speed = 22;
+    car.topSpeedFactor = 0.55; // a tired getaway car: police can keep up
+    addPoliceChase(world, { x: -30, z: 0 }, 3, Math.PI / 2);
+    addTrafficAhead(world, -30, 0, Math.PI / 2, 3);
+    p.camYaw = Math.PI / 2;
+    p.camPitch = 0.3;
+    world.missions.beacon.position.set(-140, 30, -140);
+    world.missions.ring.position.set(-140, 0.3, -140);
+    return { autopilot: 'drive' };
+  }
+  if (name === 'drive') {
+    // Cruising the main avenue with traffic ahead, market behind.
+    world.missions.index = 0;
+    world.money = 500;
+    const car = putPlayerInCar(world, -60, 40, Math.PI / 2, 0xf2a007, false);
+    car.speed = 18;
+    addTrafficAhead(world, -60, 40, Math.PI / 2, 4);
+    p.camYaw = Math.PI / 2;
+    p.camPitch = 0.28;
+    return { autopilot: 'drive' };
+  }
+  if (name === 'market') {
+    // On foot in the night market: stalls, pedestrians, mission beacon.
+    // The player stands still, looking into the plaza, so the mission
+    // target stays ahead and the frame keeps its market feel.
+    world.missions.index = 0;
+    world.money = 500;
+    p.teleport(20, 48);
+    p.heading = Math.PI;
+    p.camYaw = Math.PI;
+    p.camPitch = 0.3;
+    return { autopilot: null };
+  }
+  if (name === 'shootout') {
+    // Container-yard shootout: thugs ahead, wanted 3, health chipped.
+    world.missions.setMission(4);
+    world.money = 4800;
+    p.teleport(128, -21.5);
+    p.health = 78;
+    p.heading = Math.PI / 2;
+    p.camYaw = Math.PI / 2;
+    p.camPitch = 0.22;
+    p.camDist = 7;
+    world.police.setWanted(3, 'shot');
+    return { autopilot: 'aim' };
+  }
+  return { autopilot: null };
 }
