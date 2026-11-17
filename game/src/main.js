@@ -96,7 +96,7 @@ world.newGame = () => {
   world.hud.hideTitle();
   world.hud.showDead(false);
   world.hud.showPause(false);
-  world.hud.toast('Misi 1 — ambil paket di Pasar Malam.');
+  world.hud.toast('Mission 1 — pick up the package at the Night Market.');
 };
 
 world.continueGame = () => {
@@ -114,7 +114,7 @@ world.continueGame = () => {
   player.teleport(s.x ?? 0, s.z ?? 80);
   world.state = 'play';
   world.hud.hideTitle();
-  world.hud.toast('Selamat datang kembali, Saka.');
+  world.hud.toast('Welcome back, Saka.');
 };
 
 world.retryMission = () => {
@@ -184,7 +184,7 @@ addEventListener('keydown', (e) => {
   if (keyMap[e.code]) { input[keyMap[e.code]] = true; e.preventDefault(); }
   if (e.code === 'KeyE') tryEnterExitCar();
   if (e.code === 'KeyF') tryPunch();
-  if (e.code === 'KeyM') { const m = audio.toggleMute(); world.hud.toast(m ? 'Suara mati.' : 'Suara hidup.'); }
+  if (e.code === 'KeyM') { const m = audio.toggleMute(); world.hud.toast(m ? 'Sound off.' : 'Sound on.'); }
   if (e.code === 'KeyP' || e.code === 'Escape') {
     if (world.state === 'play' || world.state === 'pause') world.togglePause();
   }
@@ -242,7 +242,7 @@ function tryEnterExitCar() {
     if (!car.stolen) {
       car.stolen = true;
       police.addHeat(1);
-      world.hud.toast('Mobil dicuri! Polisi mengawasimu.');
+      world.hud.toast('Car stolen! The cops are watching you.');
       audio.chime();
     }
   }
@@ -319,7 +319,7 @@ function animate() {
       cp.mesh.visible = false;
       world.money += 100;
       audio.pickup();
-      world.hud.toast('+$100 uang jalanan.');
+      world.hud.toast('+$100 street cash.');
     }
   }
 
@@ -333,13 +333,13 @@ function animate() {
   if (player.busted) {
     player.busted = false;
     world.state = 'dead';
-    document.getElementById('dead-title').textContent = 'TERTANGKAP!';
-    document.getElementById('dead-text').textContent = 'Polisi menangkap Saka. Misi diulang dari awal misi ini.';
+    document.getElementById('dead-title').textContent = 'BUSTED!';
+    document.getElementById('dead-text').textContent = 'The cops caught Saka. The mission restarts from its beginning.';
     world.hud.showDead(true);
   } else if (player.dead) {
     world.state = 'dead';
-    document.getElementById('dead-title').textContent = 'KAMU MATI';
-    document.getElementById('dead-text').textContent = 'Saka tumbang. Misi diulang dari awal misi ini.';
+    document.getElementById('dead-title').textContent = 'YOU DIED';
+    document.getElementById('dead-text').textContent = 'Saka went down. The mission restarts from its beginning.';
     world.hud.showDead(true);
   }
 

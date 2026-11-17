@@ -304,7 +304,7 @@ export function buildCity(scene) {
     animated.push({ mesh: sm, phase: rand() * 6, kind: 'flicker' });
   }
   landmark(-40, 152, 18, 14, 12, 0x3a2a4a, 'KANTOR DARA', '#ff2e88');
-  landmark(-120, -80, 20, 9, 14, 0x4a4a55, 'BENGKEL RENO', '#ffe600');
+  landmark(-120, -80, 20, 9, 14, 0x4a4a55, "RENO'S GARAGE", '#ffe600');
 
   // Parked cars the player can steal, at fixed spots around town.
   const parkedSpots = [

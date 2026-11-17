@@ -42,7 +42,7 @@ export class HUD {
     if (has) {
       try {
         const s = JSON.parse(localStorage.getItem('neon-harbor-save'));
-        info.textContent = `Save terakhir: Misi ${s.missionIndex + 1}/7 — $${(s.money || 0).toLocaleString('en-US')}`;
+        info.textContent = `Last save: Mission ${s.missionIndex + 1}/7 — $${(s.money || 0).toLocaleString('en-US')}`;
       } catch { info.textContent = ''; }
     } else info.textContent = '';
   }
@@ -107,12 +107,12 @@ export class HUD {
     this.el.speed.textContent = inCar ? Math.round(Math.abs(p.inCar.speed) * 3.6) + ' km/j' : '';
     this.el.crosshair.style.display = (!inCar && w.state === 'play') ? 'block' : 'none';
     this.el.hint.innerHTML = inCar
-      ? 'W/S gas & rem &nbsp;·&nbsp; A/D belok &nbsp;·&nbsp; Spasi rem tangan &nbsp;·&nbsp; E keluar mobil &nbsp;·&nbsp; P jeda &nbsp;·&nbsp; M suara'
-      : 'WASD jalan &nbsp;·&nbsp; Shift lari &nbsp;·&nbsp; E masuk mobil &nbsp;·&nbsp; Klik tembak &nbsp;·&nbsp; F pukul &nbsp;·&nbsp; P jeda &nbsp;·&nbsp; M suara';
+      ? 'W/S accelerate & brake &nbsp;·&nbsp; A/D steer &nbsp;·&nbsp; Space handbrake &nbsp;·&nbsp; E exit car &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M sound'
+      : 'WASD move &nbsp;·&nbsp; Shift run &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; Click shoot &nbsp;·&nbsp; F punch &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M sound';
     // Interact prompt when a stealable car is near.
     const near = !inCar && w.nearestStealableCar();
     this.el.interact.style.display = near ? 'block' : 'none';
-    if (near) this.el.interact.textContent = near === w.missions.targetCar ? 'E — Curi mobil sport merah' : 'E — Masuk mobil';
+    if (near) this.el.interact.textContent = near === w.missions.targetCar ? 'E — Steal the red sports car' : 'E — Enter car';
     this.drawMinimap();
   }
 

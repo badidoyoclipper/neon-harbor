@@ -34,7 +34,7 @@ export class Missions {
     const m = this.current;
     if (!m) return '';
     if (this.phase === 'deliver' && m.deliverText) return m.deliverText;
-    if (m.checkpoints) return `${m.objective} — pos ${this.checkpoint + 1}/5`;
+    if (m.checkpoints) return `${m.objective} — checkpoint ${this.checkpoint + 1}/5`;
     if (m.enemies) return `${m.objective} — tersisa ${this.world.combat.aliveCount}`;
     return m.objective;
   }
@@ -80,7 +80,7 @@ export class Missions {
   completeMission() {
     const m = this.current;
     this.world.money += m.reward;
-    this.world.hud.toast(`Misi selesai! +$${m.reward.toLocaleString('en-US')}`);
+    this.world.hud.toast(`Mission complete! +$${m.reward.toLocaleString('en-US')}`);
     this.world.audio.missionDone();
     this.world.combat.clearEnemies();
     if (this.targetCar && this.phase === 'go') {
@@ -100,7 +100,7 @@ export class Missions {
 
   failMission(reason) {
     this.world.hud.toast(reason);
-    this.world.hud.dialogue('Misi gagal — coba lagi dari titik awal misi.');
+    this.world.hud.dialogue('Mission failed — try again from the mission start.');
     const m = this.current;
     this.world.player.teleport(m.target.x + 6, m.target.z + 6);
     this.world.player.health = 100;
@@ -131,7 +131,7 @@ export class Missions {
     }
     if (m.timeLimit) {
       this.timeLeft -= dt;
-      if (this.timeLeft <= 0) { this.failMission('Waktu habis!'); return; }
+      if (this.timeLeft <= 0) { this.failMission('Time up!'); return; }
     }
     const dist = (a) => Math.hypot(px - a.x, pz - a.z);
 
@@ -147,13 +147,13 @@ export class Missions {
       if (this.phase === 'go') {
         if (this.targetCar && p.inCar === this.targetCar) {
           this.phase = 'deliver';
-          this.world.hud.toast('Mobil didapat! Antar ke bengkel.');
-          this.world.hud.dialogue('Reno: "Bagus. Bawa ke bengkelku, jangan sampai lecet."');
+          this.world.hud.toast('Car acquired! Deliver it to the garage.');
+          this.world.hud.dialogue('Reno: "Nice. Bring it to my garage, not a scratch on it."');
         }
         return;
       }
       if (dist(m.deliver) < 15 && p.inCar === this.targetCar) {
-        this.world.hud.toast('Mobil diantar. Reno senang.');
+        this.world.hud.toast('Car delivered. Reno is pleased.');
         this.completeMission();
       }
       return;
@@ -163,7 +163,7 @@ export class Missions {
       return;
     }
     if (dist(m.target) < 9) {
-      if (m.id === 'm1-paket') this.world.hud.toast('Paket didapat!');
+      if (m.id === 'm1-paket') this.world.hud.toast('Package picked up!');
       this.completeMission();
     }
   }
